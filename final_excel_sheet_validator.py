@@ -222,46 +222,54 @@ def run_validation(uploaded_file, sheet1_name, sheet2_name, key_cols_list, uniqu
     )
 
     # --- 3) Data Restructuring (Output Construction) ---
-    key_header_col = 'Key'
-    status_header_col = 'Status'
+    # ใช้คอลัมน์จริงจาก df1_data เป็นฐาน แล้วเพิ่ม Key/Status ไว้หน้าสุด
 
-    # Insert two leading header cells "Key","Status" and blank stubs for metadata rows count
-    new_headers_content = [[key_header_col, status_header_col]] + [['', ''] for _ in range(int(metadata_rows_after_header))]
+    # 3.1 ensure Key/Status exist
+    if 'Key' not in df1_data.columns:
+        df1_data['Key'] = ''
+    if 'Status' not in df1_data.columns:
+        df1_data['Status'] = ''
+
+    # 3.2 final headers: Key, Status + original data columns (ตามจริงจาก df1_data)
+    original_cols = [c for c in df1_data.columns if c not in ['Key', 'Status']]
+    final_headers = ['Key', 'Status'] + original_cols
+
+    # 3.3 สร้าง data frame ฝั่งข้อมูล ให้คอลัมน์ตรงกับ final_headers เป๊ะ
+    df1_data_output = df1_data[['Key', 'Status'] + original_cols].copy()
+    df1_data_output.columns = final_headers  # บังคับให้ชื่อคอลัมน์ตรงกับ final_headers
+
+    # 3.4 สร้าง header row = final_headers (หนึ่งแถว) ด้วย columns = final_headers
+    header_row_df = pd.DataFrame([final_headers], columns=final_headers)
+
+    # 3.5 เตรียม metadata rows (ถ้ามี): ข้ามแถว header เดิมของไฟล์ แล้วจัดความยาวให้เท่ากับ original_cols
     metadata_rows_list = sheet1_metadata.fillna('').values.tolist()
-    # pad/trim safety
-    target_len = 1 + int(metadata_rows_after_header)
+    target_len = 1 + int(metadata_rows_after_header)   # 1 = แถว header เดิมในไฟล์
     if len(metadata_rows_list) < target_len:
+        # เติมให้ครบตามจำนวนที่ผู้ใช้ระบุ
         metadata_rows_list += [[''] * len(metadata_rows_list[0]) for _ in range(target_len - len(metadata_rows_list))]
     elif len(metadata_rows_list) > target_len:
         metadata_rows_list = metadata_rows_list[:target_len]
 
-    for i in range(target_len):
-        metadata_rows_list[i] = new_headers_content[i] + metadata_rows_list[i]
+    # ตัดเอาเฉพาะแถว metadata (ไม่เอา header เดิมของไฟล์)
+    metadata_only = metadata_rows_list[1:] if target_len > 1 else []
 
-    # Row 1 -> becomes final header row
-    header_row_df = pd.DataFrame([metadata_rows_list[0]])
-    header_row_df.columns = header_row_df.iloc[0]       # promote values to header
-    header_row_df = header_row_df.iloc[0].to_frame().T  # single-row frame
+    # pad/truncate แถว metadata ให้ยาวเท่าจำนวน original_cols แล้วเติมช่องว่าง 2 ช่องหน้า (Key/Status)
+    fixed_meta_rows = []
+    for row in metadata_only:
+        row_fixed = list(row[:len(original_cols)])
+        if len(row_fixed) < len(original_cols):
+            row_fixed += [''] * (len(original_cols) - len(row_fixed))
+        fixed_meta_rows.append(['', ''] + row_fixed)
 
-    # Remaining rows -> metadata block
-    final_metadata_sheet1 = pd.DataFrame(metadata_rows_list[1:]) if target_len > 1 else pd.DataFrame()
-    if not final_metadata_sheet1.empty:
-        final_metadata_sheet1.columns = header_row_df.columns
-        final_metadata_sheet1 = final_metadata_sheet1.reset_index(drop=True)
+    # 3.6 สร้าง DataFrame metadata โดยใช้ columns = final_headers
+    final_metadata_sheet1 = (
+        pd.DataFrame(fixed_meta_rows, columns=final_headers)
+        if fixed_meta_rows else pd.DataFrame(columns=final_headers)
+    )
 
-    # Arrange df1 data: Key, Status, then the original columns
-    all_original_cols_data = [c for c in df1_data.columns if c not in ['Key', 'Status']]
-    df1_data_output = df1_data.loc[:, ['Key', 'Status'] + all_original_cols_data]
-    df1_data_output = df1_data_output.rename(columns={'Key': key_header_col, 'Status': status_header_col})
-
-    # Ensure df1 matches the header columns exactly (create missing columns if needed)
-    for col in header_row_df.columns:
-        if col not in df1_data_output.columns:
-            df1_data_output[col] = ''
-    df1_data_output = df1_data_output[header_row_df.columns.tolist()]
-
-    # Concatenate header + metadata + data
+    # 3.7 รวม header + metadata + data ด้วย columns เดียวกัน -> ไม่เหลื่อม
     final_df1 = pd.concat([header_row_df, final_metadata_sheet1, df1_data_output], ignore_index=True)
+
 
     # --- Sheet 2 (Header normal + Key/Status first) ---
     all_cols_df2 = df2.columns.tolist()
