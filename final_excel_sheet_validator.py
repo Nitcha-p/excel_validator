@@ -13,75 +13,21 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# Maximum file size allowed for processing on Streamlit Cloud
-MAX_SIZE_MB = 40   # Recommended: 20–50 MB for stable performance
-
-
+# ============================== 
+# Core utility functions 
 # ==============================
-# Utility Functions
-# ==============================
-def _detect_engine(fname: str) -> str:
-    """Automatically detect the correct engine based on file extension."""
+def _detect_engine(fname: str) -> str: 
     return "pyxlsb" if fname.lower().endswith(".xlsb") else "openpyxl"
 
-
-def _get_file_size_mb(uploaded_file) -> float:
-    """Return the file size in MB for UploadedFile or BytesIO."""
-    if hasattr(uploaded_file, "size"):
-        size_bytes = uploaded_file.size
-    else:
-        # Fallback for normal BytesIO objects
-        pos = uploaded_file.tell()
-        uploaded_file.seek(0, os.SEEK_END)
-        size_bytes = uploaded_file.tell()
-        uploaded_file.seek(pos)
-    return size_bytes / (1024 * 1024)
-
-
-@st.cache_data(show_spinner=False)
-def get_excel_sheet_names(uploaded_file):
-    """
-    Read sheet names from an uploaded Excel file.
-
-    Features:
-    - Checks file size before processing (prevents Streamlit Cloud crashes).
-    - Automatically resets file pointer.
-    - Handles MemoryError and other exceptions safely.
-    - Returns an empty list on failure instead of crashing the whole app.
-    """
-    if uploaded_file is None:
+@st.cache_data 
+def get_excel_sheet_names(uploaded_file): 
+    """Reads sheet names from the uploaded Excel file.""" 
+    try: 
+        engine = _detect_engine(uploaded_file.name) uploaded_file.seek(0) 
+        return pd.ExcelFile(uploaded_file, engine=engine).sheet_names 
+    except Exception as e: st.error(f"Error reading file structure: {e}. Ensure the file is a valid Excel format.") 
         return []
 
-    # 1) Check file size BEFORE reading (very important on Streamlit Cloud)
-    size_mb = _get_file_size_mb(uploaded_file)
-    if size_mb > MAX_SIZE_MB:
-        st.error(
-            f"The file is too large to process: {size_mb:.1f} MB "
-            f"(maximum allowed: {MAX_SIZE_MB} MB). "
-            "Please reduce the file size or split it before uploading."
-        )
-        return []
-
-    # 2) Try reading the Excel structure
-    try:
-        engine = _detect_engine(uploaded_file.name)
-        uploaded_file.seek(0)  # Reset pointer before reading
-        xls = pd.ExcelFile(uploaded_file, engine=engine)
-        return xls.sheet_names
-
-    except MemoryError:
-        st.error(
-            "The file requires too much memory (MemoryError). "
-            "Please reduce the file size or split it before uploading."
-        )
-        return []
-
-    except Exception as e:
-        st.error(
-            f"Error reading Excel file: {e}. "
-            "Please ensure the file is a valid Excel (.xlsx, .xlsb, .xls)."
-        )
-        return []
 
 @st.cache_data
 def clean_key_value(value):
