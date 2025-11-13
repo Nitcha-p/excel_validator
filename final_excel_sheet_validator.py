@@ -23,7 +23,8 @@ def _detect_engine(fname: str) -> str:
 def get_excel_sheet_names(uploaded_file): 
     """Reads sheet names from the uploaded Excel file.""" 
     try: 
-        engine = _detect_engine(uploaded_file.name) uploaded_file.seek(0) 
+        engine = _detect_engine(uploaded_file.name) 
+        uploaded_file.seek(0) 
         return pd.ExcelFile(uploaded_file, engine=engine).sheet_names 
     except Exception as e: st.error(f"Error reading file structure: {e}. Ensure the file is a valid Excel format.") 
         return []
