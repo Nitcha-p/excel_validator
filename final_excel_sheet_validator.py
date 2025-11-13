@@ -341,9 +341,9 @@ st.markdown("1. Upload your Excel (.xlsx or .xlsb) file")
 st.markdown(
     """
     <div style='color:#777; font-size:15px; margin-bottom:8px;'>
-        <strong>Note:</strong> The server can only process files up to about 
-        <strong>40MB</strong> safely.  
-        Large files (100MB+) may crash due to memory limits, even though the uploader shows a 200MB limit.
+        <strong>Note :</strong> The server can only process files up to about 
+        <strong>30MB</strong> safely.  
+        Large files may crash due to memory limits, even though the uploader shows a 200MB limit.
     </div>
     """,
     unsafe_allow_html=True
