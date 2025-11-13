@@ -285,18 +285,6 @@ def run_validation(uploaded_file, sheet1_name, sheet2_name, key_cols_list, uniqu
 st.title("Multi-Sheet Data Validator")
 st.markdown("1. Upload your Excel (.xlsx or .xlsb) file")
 
-# Add your own warning (because 200MB upload limit ≠ safe processing)
-st.markdown(
-    """
-    <div style='color:#777; font-size:15px; margin-bottom:8px;'>
-        <strong>Note :</strong> The server can only process files up to about 
-        <strong>30MB</strong> safely.  
-        Large files may crash due to memory limits, even though the uploader shows a 200MB limit.
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
 uploaded_file = st.file_uploader(
     "Upload Excel File for Validation :",
     type=['xlsx', 'xlsb', 'xls'],
